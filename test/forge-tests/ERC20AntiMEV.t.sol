@@ -4,6 +4,9 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import {Utils} from "./Utils.sol";
 import "../../contracts/ERC20AntiMEV.sol";
+import "../../contracts/uniswap/uniswap-core/UniswapV2Factory.sol";
+import "../../contracts/uniswap/uniswap-periphery/UniswapV2Router02.sol";
+import "../../contracts/uniswap/uniswap-periphery/test/WETH9.sol";
 
 contract CounterTest is Test {
     Utils internal utils;
@@ -17,9 +20,16 @@ contract CounterTest is Test {
     address internal bystanderSeller;
 
     ERC20AntiMEV public erc20;
+    WETH9 public weth;
+    UniswapV2Factory public uniswapFactory;
+    UniswapV2Router02 public uniswapRouter;
 
     function setUp() public {
         utils = new Utils();
+        uniswapFactory = new UniswapV2Factory(address(0));
+        weth = new WETH9();
+        uniswapRouter = new UniswapV2Router02(address(uniswapFactory), address(weth));
+
         users = utils.createUsers(6);
         owner = users[0];
         vm.label(owner, "Owner");
@@ -35,7 +45,7 @@ contract CounterTest is Test {
         vm.label(bystanderSeller, "Bystander Seller");
 
         vm.prank(owner);
-        erc20 = new ERC20AntiMEV(10000, "token");
+        erc20 = new ERC20AntiMEV(1000000 ether, "token");
         skip(1);
     }
 
@@ -106,6 +116,114 @@ contract CounterTest is Test {
         //Set caller to amm pool
         vm.startPrank(ammPool);
         erc20.transfer(bystanderBuyer, 100); //Bystander 2 buys in the same block
+
+        vm.stopPrank();
+    }
+
+    function testUniswapBuySandwich() public {
+        /* Setup for this set of buy tests */
+        vm.startPrank(owner);
+        erc20.approve(address(uniswapRouter), 1000000 ether);
+        uniswapRouter.addLiquidityETH{value: 100 ether}(address(erc20), 100000 ether, 0, 0, owner, 1 ether);
+        erc20.setExcused(address(uniswapFactory.getPair(address(weth), address(erc20))), true);
+        skip(1);
+        erc20.transfer(bystanderSeller, 1 ether);
+        skip(1);
+
+        /******** BEGIN ATTACK ********/
+
+        // 1: Attacker has seen victim with high slippage in the mempool, sent the transaction of ETH for tokens with increased gas
+        vm.startPrank(attacker);
+        address[] memory t = new address[](2);
+        t[0] = address(weth);
+        t[1] =address(erc20);
+        uniswapRouter.swapExactETHForTokensSupportingFeeOnTransferTokens{value: 1 ether}(0, t, attacker, 1 ether);
+
+        // 2: Unassuming victims ETH for tokens transaction continues, receives less tokens as a result
+        vm.startPrank(victim);
+        t = new address[](2);
+        t[0] = address(weth);
+        t[1] =address(erc20);
+        uniswapRouter.swapExactETHForTokensSupportingFeeOnTransferTokens{value: 1 ether}(0, t, victim, 1 ether);
+        
+        // 3: Attacker sells their tokens for ETH and receives some measure of profit
+        vm.startPrank(attacker);
+        erc20.approve(address(uniswapRouter), 1000000 ether);
+        t = new address[](2);
+        t[0] = address(erc20);
+        t[1] =address(weth);
+        vm.expectRevert(); //Expect this to revert
+        uniswapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(1 ether, 0, t, attacker, 1 ether);
+
+        /* Others interacting in the pool to test contract integrity - Ignore */
+        vm.startPrank(bystanderSeller);
+        erc20.approve(address(uniswapRouter), 1000000 ether);
+        t = new address[](2);
+        t[0] = address(erc20);
+        t[1] =address(weth);
+        uniswapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(1 ether, 0, t, bystanderSeller, 1 ether);
+
+        vm.startPrank(bystanderBuyer);
+        t = new address[](2);
+        t[0] = address(weth);
+        t[1] =address(erc20);
+        uniswapRouter.swapExactETHForTokensSupportingFeeOnTransferTokens{value: 1 ether}(0, t, bystanderBuyer, 1 ether);
+    
+        vm.stopPrank();
+    }
+
+    function testUniswapSellSandwich() public {
+        /* Setup for this set of sell tests */
+        vm.startPrank(owner);
+        erc20.approve(address(uniswapRouter), 1000000 ether);
+        uniswapRouter.addLiquidityETH{value: 100 ether}(address(erc20), 100000 ether, 0, 0, owner, 1 ether);
+        erc20.setExcused(address(uniswapFactory.getPair(address(weth), address(erc20))), true);
+        erc20.setExcused(owner, true);
+        skip(1);
+        erc20.transfer(bystanderSeller, 1 ether);
+        erc20.transfer(attacker, 1 ether);
+        erc20.transfer(victim, 1 ether);
+        skip(1);
+
+        /******** BEGIN ATTACK ********/
+
+        // 1: Attacker has seen victim with high slippage in the mempool, sent the transaction of ETH for tokens with increased gas
+        vm.startPrank(attacker);
+        erc20.approve(address(uniswapRouter), 1000000 ether);
+        address[] memory t = new address[](2);
+        t[0] = address(erc20);
+        t[1] =address(weth);
+        uniswapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(1 ether, 0, t, attacker, 1 ether);
+
+        // 2: Unassuming victims tokens for ETH transaction continues, receives less tokens as a result
+        vm.startPrank(victim);
+        erc20.approve(address(uniswapRouter), 1000000 ether);
+        t = new address[](2);
+        t[0] = address(erc20);
+        t[1] =address(weth);
+        uniswapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(1 ether, 0, t, victim, 1 ether);
+
+        // 3: Attacker sells their ETH for tokens and receives some measure of profit
+        vm.startPrank(attacker);
+        t = new address[](2);
+        t[0] = address(weth);
+        t[1] =address(erc20);
+        vm.expectRevert(); //Expect this to revert
+        uniswapRouter.swapExactETHForTokensSupportingFeeOnTransferTokens{value: 1 ether}(0, t, attacker, 1 ether);
+
+        /* Others interacting in the pool to test contract integrity - Ignore */
+        vm.startPrank(bystanderSeller);
+        erc20.approve(address(uniswapRouter), 1000000 ether);
+        t = new address[](2);
+        t[0] = address(erc20);
+        t[1] =address(weth);
+        uniswapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(1 ether, 0, t, bystanderSeller, 1 ether);
+
+        vm.startPrank(bystanderBuyer);
+        t = new address[](2);
+        t[0] = address(weth);
+        t[1] =address(erc20);
+        uniswapRouter.swapExactETHForTokensSupportingFeeOnTransferTokens{value: 1 ether}(0, t, bystanderBuyer, 1 ether);
 
         vm.stopPrank();
     }

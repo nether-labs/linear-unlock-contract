@@ -2,9 +2,7 @@ pragma solidity ^0.8.0;
 
 import "../../uniswap-core/interfaces/IUniswapV2Pair.sol";
 
-import "./SafeMath.sol";
-
-import "hardhat/console.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 library UniswapV2Library {
     using SafeMath for uint256;
@@ -32,9 +30,7 @@ library UniswapV2Library {
                             factory,
                             keccak256(abi.encodePacked(token0, token1)),
                             //hex"0973a9defda44587be33f22e663b80b272b5c7d33388b3cef1c2f1a56775cb6f" // init code hash
-                            //hex"d278ba0175ab5e7e7ff62c169563000af4111e18858d25ad96ad781edcacf138" // init code hash 50 run optimised
-                            // hex"1431ea6215b47c170cf57d6630911716645e776e3b345ffad8c51f5477661735"
-                            hex"6e39cb80c0b679760caef2490c4f6fbebcac31b7ae6df55f7e24b04256a1594f"
+                            hex"34df1cd96d24dd67fe94fdec662fd4b4b748872d9cab9dd32d388c2a814d992e"
                         )
                     )
                 )
