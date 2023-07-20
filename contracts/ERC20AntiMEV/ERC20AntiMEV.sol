@@ -6,8 +6,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 // import "hardhat/console.sol";
 
 contract ERC20AntiMEV is ERC20, Ownable {
-    mapping(address => uint256) public tracker;
-    mapping(address => bool) public excused;
+    mapping(address => uint256) public tracker; // Tracks when accounts/contracts last sent/received the token
+    mapping(address => bool) public excused; // Accounts/contracts which are excused from this mechanism
     bool blockActive = true;
 
     constructor(

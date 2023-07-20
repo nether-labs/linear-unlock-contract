@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import {Utils} from "./Utils.sol";
-import "../../contracts/ERC20AntiMEV.sol";
+import "../../contracts//ERC20AntiMEV/ERC20AntiMEV.sol";
 import "../../contracts/uniswap/uniswap-core/UniswapV2Factory.sol";
 import "../../contracts/uniswap/uniswap-periphery/UniswapV2Router02.sol";
 import "../../contracts/uniswap/uniswap-periphery/test/WETH9.sol";
