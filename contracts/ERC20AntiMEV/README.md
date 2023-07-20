@@ -54,7 +54,7 @@ tracker[to] = tracker[from] = block.timestamp;
 
 This implementation cannot account for all types of sandwich-based attacks, i.e. those that can be executed by bundlers ([ERC-4337](https://eips.ethereum.org/EIPS/eip-4337)). Best efforts were made to account for as much on-chain possibilities. Shown below is a diagram showing a non-exhaustive list of sandwich attacks.
 
-![Untitled](https://github.com/trueoriginlabs/public-solidity-contracts/tree/main/docs/imgs/anti-sandwich-erc-20-extension.png)
+![Untitled](https://github.com/trueoriginlabs/public-solidity-contracts/blob/main/docs/imgs/anti-sandwich-erc-20-extension.jpg)
 
 If further improvements to the implementation can be made, please contact the TrueOrigin Labs team members. Corrections and additions will be recognized and will be added to the contributors list.
 
