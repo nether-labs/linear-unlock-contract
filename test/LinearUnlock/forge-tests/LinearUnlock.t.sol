@@ -4,8 +4,8 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import {Utils} from "./Utils.sol";
 import "../../../contracts/ERC20AntiMEV/ERC20AntiMEV.sol";
-import "../../../contracts/token/LinearUnlock.sol";
-import "../../../contracts/token/interfaces/ILinearUnlock.sol";
+import "../../../contracts/LinearUnlock/LinearUnlock.sol";
+import "../../../contracts/LinearUnlock/interfaces/ILinearUnlock.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract LinearUnlockTest is Test, ILinearUnlock {
@@ -57,7 +57,7 @@ contract LinearUnlockTest is Test, ILinearUnlock {
             vm.startPrank(users[i]);
             linearUnlock.claim();
             uint256 balance = erc20.balanceOf(address(users[i]));
-            (,,uint256 claimable,,) = linearUnlock.users(address(users[i]));
+            (, , uint256 claimable, , ) = linearUnlock.users(address(users[i]));
             assertEq(claimable.div(linearUnlock.SCALAR()), balance);
         }
 
